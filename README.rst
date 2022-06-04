@@ -39,7 +39,7 @@ Development
 
 2. Set up a virtualenv.
 
-   ``$ python -m venv env --system-site-packages``
+   ``$ python3 -m venv env --system-site-packages``
 
 3. Install mopidy-jellyfin to the virtualenv.
 
