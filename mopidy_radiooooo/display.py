@@ -6,7 +6,6 @@ from PIL import ImageFont
 
 
 def draw_data(disp, state):
-
     width = disp.width
     height = disp.height
     image = Image.new('1', (width, height))
@@ -18,16 +17,20 @@ def draw_data(disp, state):
     padding = -2
     top = padding
     bottom = height-padding
-
     x = 0
-    font = ImageFont.load_default()
+
 
     # Clear Out Bkg
     draw.rectangle((0,0,width,height), outline=0, fill=0)
 
-    draw.text((x, top),"Radiooooo",  font=font, fill=255)
-    draw.text((x, top+8), state["year"], font=font, fill=255)
-    draw.text((x, top+16), state["code"],  font=font, fill=255)
+    font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
+    font_small = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 8)
+
+    tw, th = draw.textsize(state["code"], font=font_small)
+    draw.text(((width - tw)/2, top), state["code"],  font=font_small, fill=255)
+
+    tw, th = draw.textsize(state["year"], font=font)
+    draw.text(((width - tw)/2, top+8), state["year"],  font=font, fill=255)
 
     disp.image(image)
     disp.display()

@@ -17,19 +17,11 @@ butt_conf = {
 
 from .display import draw_data
 
-
-def increment_opt(increment, options, idx):
-    n_idx = idx + 1 if increment else idx - 1
-    if n_idx < 0:
-        n_idx = len(options) -1
-    elif n_idx >= len(options):
-        n_idx = 0
-    return n_idx
-
 class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
     def __init__(self, config, core):
         super(RadioooooFrontend, self).__init__()
         self.core = core
+        # Display Setup
         self.disp = Adafruit_SSD1306.SSD1306_128_32(rst=RST)
         self.disp.begin()
         self.disp.clear()
@@ -49,15 +41,19 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
     def on_start(self):
         self.update_display()
         while True:
-            self.warm_down = 0 if self.warm_down == 0 else self.warm_down - 1
+            self.warm_down = self.warm_down - 1
             if self.warm_down == 0:
                 channel = f"radiooooo:{self.year_options[self.year_index]}:{self.code_options[self.code_index]}"
                 print(f"Playing Now {channel}")
-                self.warm_down = -1
                 self.core.playback.stop()
                 self.core.tracklist.clear()
                 self.core.tracklist.add(uris=[channel])
                 self.core.playback.play()
+            elif self.warm_down == -10:
+                self.disp.clear()
+                self.disp.display()
+            elif self.warm_down < -10:
+                self.warm_down = -11
             time.sleep(1)
 
     def on_stop(self):
@@ -72,14 +68,21 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
     
     def on_button_press(self, channel):
         current = butt_conf[channel]
-        print(f"Whoa {butt_conf[channel]} was clicked")
         if current == "year_up":
-            self.year_index = increment_opt(True, self.year_options, self.year_index)
+            self.year_index = self.handle_options(True, self.year_options, self.year_index)
         elif current == "year_down":
-            self.year_index = increment_opt(False, self.year_options, self.year_index)
+            self.year_index = self.handle_options(False, self.year_options, self.year_index)
         if current == "code_up":
-            self.code_index = increment_opt(True, self.code_options, self.code_index)
+            self.code_index = self.handle_options(True, self.code_options, self.code_index)
         elif current == "code_down":
-            self.code_index = increment_opt(False, self.code_options, self.code_index)
+            self.code_index = self.handle_options(False, self.code_options, self.code_index)
         self.update_display()
         self.warm_down = 4
+
+    def handle_options(self, increment, options, idx):
+        n_idx = idx + 1 if increment else idx - 1
+        if n_idx < 0:
+            n_idx = len(options) -1
+        elif n_idx >= len(options):
+            n_idx = 0
+        return n_idx
