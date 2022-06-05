@@ -7,10 +7,11 @@ from .constants import lookup_code
 
 BASE_URL = "https://radiooooo.com"
 
-def get_track(year, country):
-    headersList = {
-        "Content-Type": "application/json" 
-    }
+def make_session_id():
+    home = requests.get(f"{BASE_URL}/account/info")
+    return home.cookies["connect.sid"];
+
+def get_track(year, country, session_id):
 
     payload = {
         "mode": "explore",
@@ -23,7 +24,8 @@ def get_track(year, country):
         "POST", 
         f"{BASE_URL}/play",
         data=json.dumps(payload),
-        headers=headersList
+        headers={  "Content-Type": "application/json" },
+        cookies={ "connect.sid": session_id }
     )
     return response.json()
 
@@ -40,11 +42,12 @@ class RadioooooPlaybackProvider(backend.PlaybackProvider):
         super(RadioooooPlaybackProvider, self).__init__(audio, backend)
         self.track = None
         self.uri = None
+        self.session_id = make_session_id()
 
     def advance_track(self):
         parts = self.uri.split(":")
         year, country = int(parts[1]), parts[2]
-        self.track = get_track(int(parts[1]), parts[2])
+        self.track = get_track(int(parts[1]), parts[2], self.session_id)
         meta = models.Track(
             uri= self.uri,
             name=self.track["title"],
