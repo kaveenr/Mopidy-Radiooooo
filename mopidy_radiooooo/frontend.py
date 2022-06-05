@@ -31,6 +31,7 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
         super(RadioooooFrontend, self).__init__()
         self.core = core
         self.disp = Adafruit_SSD1306.SSD1306_128_32(rst=RST)
+        self.disp.begin()
         self.disp.clear()
         self.disp.display()
         # Frontend State
