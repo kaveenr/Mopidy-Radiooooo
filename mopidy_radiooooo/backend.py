@@ -75,7 +75,6 @@ class RadioooooPlaybackProvider(backend.PlaybackProvider):
         self.advance_track()
         self.audio.set_uri(self.current_track_url()).get()
 
-
 class RadioooooLibraryProvider(backend.LibraryProvider):
     
     root_directory = models.Ref.directory(uri='radiooooo:', name='Radiooooo')
