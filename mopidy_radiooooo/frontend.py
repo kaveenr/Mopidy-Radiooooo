@@ -1,25 +1,24 @@
 import pykka, time
 import logging
 from mopidy import core
+import os
 
 import Adafruit_GPIO.SPI as SPI
 import Adafruit_SSD1306
 import RPi.GPIO as GPIO
 
-# Pin Config
-RST = None
-
 SWITCH_PIN = 17
 ENC_DT_PIN = 9
 ENC_CLK_PIN = 10
+SDOWN_PIN = 20
 
-from .display import draw_data
+from .display import OLEDDisplay
 
 logger = logging.getLogger(__name__)
 
 class PiRotaryEncoder:
     
-    def __init__(self, dt_pin, clk_pin, bouncetime=5):
+    def __init__(self, dt_pin, clk_pin, bouncetime=1):
         self.dt_pin, self.clk_pin = dt_pin, clk_pin
         GPIO.setup(self.dt_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(self.clk_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
@@ -34,6 +33,7 @@ class PiRotaryEncoder:
         if clk_state != self.clk_last_state:
             direc = dt_state != clk_state
             if self.callback: self.callback(direc)
+        self.clk_last_state = clk_state
     
     def register_callback(self, callback):
         self.callback = callback
@@ -43,10 +43,8 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
         super(RadioooooFrontend, self).__init__()
         self.core = core
         # Display Setup
-        self.disp = Adafruit_SSD1306.SSD1306_128_32(rst=RST)
-        self.disp.begin()
+        self.disp = OLEDDisplay('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
         self.disp.clear()
-        self.disp.display()
         # Frontend State
         self.display_options = ["Country", "Year"]
         self.display_index = 0
@@ -63,6 +61,9 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
         GPIO.add_event_detect(SWITCH_PIN, GPIO.RISING, bouncetime=100, callback=self.switch_mode)
         encoder = PiRotaryEncoder(ENC_DT_PIN, ENC_CLK_PIN)
         encoder.register_callback(self.update_options)
+        # Setup Shutdown Button
+        GPIO.setup(SDOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.add_event_detect(SDOWN_PIN, GPIO.RISING, callback=self.shutdown)
 
     def on_start(self):
         self.update_display()
@@ -77,20 +78,18 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
                 self.core.playback.play()
             elif self.warm_down == -10:
                 self.disp.clear()
-                self.disp.display()
             elif self.warm_down < -10:
                 self.warm_down = -11
             time.sleep(1)
 
     def on_stop(self):
         self.disp.clear()
-        self.disp.display()
 
     def update_display(self):
-        draw_data(self.disp, {
-            "code": self.code_options[self.code_index],
-            "year": self.year_options[self.year_index]
-        })
+        if self.display_index == 0:
+            self.disp.draw_country(self.code_options[self.code_index])
+        elif self.display_index == 1:
+            self.disp.draw_year(self.year_options[self.year_index])
     
     def switch_mode(self, channel):
         self.display_index = self.handle_options(True, self.display_options, self.display_index)
@@ -112,3 +111,7 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
         elif n_idx >= len(options):
             n_idx = 0
         return n_idx
+    
+    def shutdown(self, channel):
+        logger.info("Shutting down system!")
+        os.system("sudo shutdown -h now")
