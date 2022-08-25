@@ -8,8 +8,11 @@ import Adafruit_SSD1306
 import RPi.GPIO as GPIO
 
 SWITCH_PIN = 17
-ENC_DT_PIN = 9
-ENC_CLK_PIN = 10
+ENC_DT_PIN = 22
+ENC_CLK_PIN = 27
+
+VOL_DT_PIN = 5
+VOL_CLK_PIN = 6
 SDOWN_PIN = 20
 
 from .display import OLEDDisplay
@@ -61,6 +64,8 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
         GPIO.add_event_detect(SWITCH_PIN, GPIO.RISING, bouncetime=100, callback=self.switch_mode)
         encoder = PiRotaryEncoder(ENC_DT_PIN, ENC_CLK_PIN)
         encoder.register_callback(self.update_options)
+        vol_encoder = PiRotaryEncoder(VOL_DT_PIN, VOL_CLK_PIN)
+        vol_encoder.register_callback(self.set_volume)
         # Setup Shutdown Button
         GPIO.setup(SDOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.add_event_detect(SDOWN_PIN, GPIO.RISING, callback=self.shutdown)
@@ -97,12 +102,18 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
         logger.debug(f"Current Mode Is {self.display_options[self.display_index]}")
     
     def update_options(self, direc):
+        logger.debug(f"Select Encoder Tick {direc}")
         if self.display_index == 0:
             self.code_index = self.handle_options(direc, self.code_options, self.code_index)
         elif self.display_index == 1:
             self.year_index = self.handle_options(direc, self.year_options, self.year_index)
         self.warm_down = 4
         self.update_display()
+
+    def set_volume(self, direc):
+        cur_vol = self.core.mixer.get_volume().get()
+        self.core.mixer.set_volume(cur_vol - 5 if direc else  cur_vol + 5)
+        logger.debug(f"Volume Encoder Tick {direc}")
 
     def handle_options(self, increment, options, idx):
         n_idx = idx + 1 if increment else idx - 1
