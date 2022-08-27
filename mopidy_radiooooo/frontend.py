@@ -13,33 +13,13 @@ ENC_CLK_PIN = 27
 
 VOL_DT_PIN = 5
 VOL_CLK_PIN = 6
+
 SDOWN_PIN = 20
 
 from .display import OLEDDisplay
+from .io import PiRotaryEncoder
 
 logger = logging.getLogger(__name__)
-
-class PiRotaryEncoder:
-    
-    def __init__(self, dt_pin, clk_pin, bouncetime=1):
-        self.dt_pin, self.clk_pin = dt_pin, clk_pin
-        GPIO.setup(self.dt_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.setup(self.clk_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.add_event_detect(self.clk_pin, GPIO.RISING, 
-            callback=self.clock_tick, bouncetime=bouncetime)
-        self.clk_last_state = GPIO.input(self.clk_pin)
-        self.callback = None
-    
-    def clock_tick(self, channel):
-        clk_state = GPIO.input(self.clk_pin)
-        dt_state = GPIO.input(self.dt_pin)
-        if clk_state != self.clk_last_state:
-            direc = dt_state != clk_state
-            if self.callback: self.callback(direc)
-        self.clk_last_state = clk_state
-    
-    def register_callback(self, callback):
-        self.callback = callback
 
 class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
     def __init__(self, config, core):
@@ -112,7 +92,7 @@ class RadioooooFrontend(pykka.ThreadingActor, core.CoreListener):
 
     def set_volume(self, direc):
         cur_vol = self.core.mixer.get_volume().get()
-        self.core.mixer.set_volume(cur_vol - 5 if direc else  cur_vol + 5)
+        self.core.mixer.set_volume(cur_vol + 5 if direc else  cur_vol - 5)
         logger.debug(f"Volume Encoder Tick {direc}")
 
     def handle_options(self, increment, options, idx):
